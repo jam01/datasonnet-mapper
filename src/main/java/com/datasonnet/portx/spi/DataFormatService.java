@@ -55,4 +55,13 @@ public class DataFormatService {
     public void findAndRegisterPlugins() {
         pluginRegistry.putAll(findPlugins());
     }
+
+    public void unregisterPlugins(String mimeType) {
+        pluginRegistry.remove(mimeType);
+    }
+
+    public void unregisterAllPlugins() {
+        pluginRegistry = new HashMap<>();
+    }
+
 }

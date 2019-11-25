@@ -14,6 +14,10 @@ public class DataFormatPluginsTest {
     @Test
     void testDataFormatPlugins() throws Exception {
         DataFormatService service = DataFormatService.getInstance();
+
+        //Clear the registry
+        service.unregisterAllPlugins();
+
         assertNull(service.getPluginFor("application/xml"));
         Map<String, List<DataFormatPlugin>> plugins = service.findPlugins();
         assertTrue(plugins.containsKey("application/xml"));

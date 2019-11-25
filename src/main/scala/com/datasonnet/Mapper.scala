@@ -1,7 +1,9 @@
 package com.datasonnet
 
 import java.io.{File, PrintWriter, StringWriter}
+import java.util
 
+import com.datasonnet.portx.spi.DataFormatService
 import com.datasonnet.wrap.{DataSonnetPath, NoFileEvaluator}
 import fastparse.{IndexedParserInput, Parsed}
 import sjsonnet.Expr.Member.Visibility
@@ -89,21 +91,46 @@ object Mapper {
     (name -> jsonnetLibrary)
   }
 
-  def input(data: Document): Expr = {
+  def getParams(name: String, mimeType: String, header: Header): util.Map[String, Object] = {
+    if (header != null) {
+      val dfParams = header.getDataFormatParameters().get(mimeType);
+      if (dfParams != null) {
+        val mergedParams = dfParams.getOrDefault(Header.DATAFORMAT_DEFAULT, new util.HashMap[String, Object]())
+        mergedParams.putAll(dfParams.getOrDefault(name, new util.HashMap[String, Object]()))
+        mergedParams
+      } else new util.HashMap[String, Object]()
+    } else new util.HashMap[String, Object]()
+  }
+
+  def input(name: String, data: Document, header: Header): Expr = {
     val json = data.mimeType match {
-      case "text/plain" | "application/csv" | "application/xml" => ujson.Str(data.contents)
+      case "text/plain" => ujson.Str(data.contents)
       case "application/json" => ujson.read(data.contents)
-      case x => throw new IllegalArgumentException("The input mime type " + x + " is not supported")
+      case x => {
+        val plugin = DataFormatService.getInstance().getPluginFor(data.mimeType)
+        if (plugin != null) {
+          plugin.read(data.contents(), getParams(name, data.mimeType, header))
+        } else {
+          throw new IllegalArgumentException("The input mime type " + x + " is not supported")
+        }
+      }
     }
 
     Materializer.toExpr(json)
   }
 
-  def output(output: ujson.Value, mimeType: String): Document = {
+  def output(output: ujson.Value, mimeType: String, header: Header): Document = {
     val string = mimeType match {
       case "application/json" => output.toString()
-      case "text/plain" | "application/csv" | "application/xml" => output.str
-      case x => throw new IllegalArgumentException("The output mime type " + x + " is not supported")
+      case "text/plain" => output.str
+      case x => {
+        val plugin = DataFormatService.getInstance().getPluginFor(mimeType)
+        if (plugin != null) {
+          plugin.write(output, getParams(Header.DATASONNET_OUTPUT, mimeType, header))
+        } else {
+          throw new IllegalArgumentException("The output mime type " + x + " is not supported")
+        }
+      }
     }
     new StringDocument(string, mimeType)
   }
@@ -112,6 +139,8 @@ object Mapper {
 
 
 class Mapper(var jsonnet: String, argumentNames: java.lang.Iterable[String], imports: java.util.Map[String, String], needsWrapper: Boolean) {
+
+  var header = Header.parseHeader(jsonnet);
 
   if(needsWrapper) {
     jsonnet = Mapper.wrap(jsonnet, argumentNames.asScala)
@@ -183,10 +212,10 @@ class Mapper(var jsonnet: String, argumentNames: java.lang.Iterable[String], imp
 
   def transform(payload: Document, arguments: java.util.Map[String, Document], outputMimeType: String): Document = {
 
-    val data = Mapper.input(payload)
+    val data = Mapper.input("payload", payload, header)
 
-    val parsedArguments = arguments.asScala.view.mapValues { Mapper.input(_) }
-
+    //val parsedArguments = arguments.asScala.view.mapValues { Mapper.input(_, header) }
+    val parsedArguments = arguments.asScala.view.toMap[String, Document].map { case (name, data) => (name, Mapper.input(name, data, header)) }
 
     val first +: rest = function.params.args
 
@@ -210,6 +239,6 @@ class Mapper(var jsonnet: String, argumentNames: java.lang.Iterable[String], imp
         throw new IllegalArgumentException("Problem executing map: " + Mapper.expandErrorLineNumber(s.toString, lineOffset).replace("\t", "    "))
     }
 
-    Mapper.output(materialized, outputMimeType)
+    Mapper.output(materialized, outputMimeType, header)
   }
 }
