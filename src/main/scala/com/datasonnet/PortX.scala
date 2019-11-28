@@ -3,10 +3,11 @@ package com.datasonnet
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, Period, ZoneId, ZoneOffset}
 
+
 import com.datasonnet
 import com.datasonnet.spi.{DataFormatPlugin, DataFormatService, UnsupportedMimeTypeException, UnsupportedParameterException}
-import com.datasonnet.wrap.Library.{builtin, builtin0, library}
-import sjsonnet.Std.builtinWithDefaults
+import com.datasonnet.wrap.Library.library
+import sjsonnet.Std._
 import sjsonnet.{EvalScope, Expr, Materializer, Val}
 
 import scala.util.Failure
@@ -31,10 +32,10 @@ object PortX {
           datetimeObj.format(DateTimeFormatter.ofPattern(outputFormat))
       },
 
-      builtin("compare", "datetime1", "format1", "datetime2", "format2") {
-        (ev, fs, datetime1: String, format1: String, datetime2: String, format2: String) =>
-          val datetimeObj1 = java.time.ZonedDateTime.parse(datetime1, DateTimeFormatter.ofPattern(format1))
-          val datetimeObj2 = java.time.ZonedDateTime.parse(datetime2, DateTimeFormatter.ofPattern(format2))
+      builtin0("compare", "datetime1", "format1", "datetime2", "format2") {
+        (vals, ev, fs) =>
+          val datetimeObj1 = java.time.ZonedDateTime.parse(vals(0).cast[Val.Str].value, DateTimeFormatter.ofPattern(vals(1).cast[Val.Str].value))
+          val datetimeObj2 = java.time.ZonedDateTime.parse(vals(2).cast[Val.Str].value, DateTimeFormatter.ofPattern(vals(3).cast[Val.Str].value))
           datetimeObj1.compareTo(datetimeObj2)
       },
 
@@ -103,10 +104,10 @@ object PortX {
           datetimeObj.format(DateTimeFormatter.ofPattern(outputFormat))
       },
 
-      builtin("compare", "datetime1", "format1", "datetime2", "format2") {
-        (ev, fs, datetime1: String, format1: String, datetime2: String, format2: String) =>
-          val datetimeObj1 = java.time.LocalDateTime.parse(datetime1, DateTimeFormatter.ofPattern(format1))
-          val datetimeObj2 = java.time.LocalDateTime.parse(datetime2, DateTimeFormatter.ofPattern(format2))
+      builtin0("compare", "datetime1", "format1", "datetime2", "format2") {
+        (vals, ev, fs) =>
+          val datetimeObj1 = java.time.LocalDateTime.parse(vals(0).cast[Val.Str].value, DateTimeFormatter.ofPattern(vals(1).cast[Val.Str].value))
+          val datetimeObj2 = java.time.LocalDateTime.parse(vals(2).cast[Val.Str].value, DateTimeFormatter.ofPattern(vals(3).cast[Val.Str].value))
           datetimeObj1.compareTo(datetimeObj2)
       }
     ),
